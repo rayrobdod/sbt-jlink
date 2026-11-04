@@ -4,10 +4,6 @@ lazy val jlink = project
 	.settings(
 		sbtPlugin := true,
 
-		libraryDependencies += {
-			"org.apache.derby" % "derby" % "10.17.1.0"
-		},
-
 		name := "sbt-jlink",
 		organization := "name.rayrobdod",
 		organizationHomepage := Some(uri("http://rayrobdod.name/")),
