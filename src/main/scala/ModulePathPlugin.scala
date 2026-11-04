@@ -2,6 +2,7 @@ package name.rayrobdod.sbtJlink
 
 import sbt.{URL => _, _}
 import sbt.Keys._
+import sbt.util.CacheImplicits.given
 
 object ModulePathPlugin extends AutoPlugin:
 	override def requires = sbt.plugins.JvmPlugin
@@ -15,7 +16,7 @@ object ModulePathPlugin extends AutoPlugin:
 	private def unscopedSettings = Seq(
 		ivyConfigurations += ModulePath,
 		modulepathAddModules := Nil,
-		Compile / dependencyModulepath := {
+		Compile / dependencyModulepath := Def.uncached {
 			val c: xsbti.FileConverter = (fileConverter).value
 
 			update.value
