@@ -6,14 +6,13 @@ lazy val manual = project
 	.settings(
 		autoScalaLibrary := false,
 		libraryDependencies += "org.jsoup" % "jsoup" % "1.20.1" % ModulePath,
-		modulepathAddModules += "org.jsoup"
 	)
 	.settings(
 		verify := {
 			val logger = (verify / streams).value.log
 			val expected = "Hello <em>World</em>"
 			// TODO: How to capture the output of `run` and compare it to something
-			
+
 			()
 		}
 )
