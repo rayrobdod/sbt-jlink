@@ -10,6 +10,9 @@ object ModulePathPlugin extends AutoPlugin:
 	object autoImport:
 		val ModulePath = config("modulePath").hide
 
+		val mainModule = taskKey[Option[String]]("This project's java platform module")
+		val discoveredModules = taskKey[Seq[String]]("Discovered java platform modules in this project")
+
 		val unmanagedModulepath = taskKey[Classpath]("Modulepath entries (deep) that are manually managed.")
 		val managedModulepath = taskKey[Classpath]("The modulepath consisting of external, managed library dependencies.")
 		val externalDependencyModulepath = taskKey[Classpath]("The classpath consisting of library dependencies, both managed and unmanaged.")
@@ -82,6 +85,25 @@ object ModulePathPlugin extends AutoPlugin:
 		inConfig(config)(Seq(
 			run / fork := true,
 
+			discoveredModules := {
+				val c: xsbti.FileConverter = (fileConverter).value
+				(Compile / exportedProductJars).value.flatMap: attr =>
+					ModulePathPlugin.moduleName(c.toPath(attr.data))
+			},
+			mainModule := {
+				val discovered = discoveredModules.value
+				if discovered.size == 1 then
+					discovered.headOption
+				else
+					None
+			},
+
+
+			// removing modules from the classpath doesn't seem to be necessary.
+			// Classloading is "platform-dependent" so this isn't guaranteed,
+			// however, based on the tests leaving modulepath items in the classpath seems fine
+
+
 			unmanagedModulepath := Nil, // TODO
 			managedModulepath := Def.uncached {
 				val c: xsbti.FileConverter = (fileConverter).value
@@ -103,7 +125,10 @@ object ModulePathPlugin extends AutoPlugin:
 				Classpaths.concat(internalDependencyModulepath, externalDependencyModulepath).value
 			},
 			fullModulepath := {
-				dependencyModulepath.value // and self, if self is a module
+				if mainModule.value.isDefined then
+					dependencyModulepath.value ++ exportedProducts.value
+				else
+					dependencyModulepath.value
 			},
 
 
@@ -119,8 +144,12 @@ object ModulePathPlugin extends AutoPlugin:
 				unmanagedAddModules.value ++ managedAddModules.value
 			},
 			fullAddModules := {
-				dependencyAddModules.value // and self, if self is a module
+				if mainModule.value.isDefined then
+					dependencyAddModules.value :+ mainModule.value.get
+				else
+					dependencyAddModules.value
 			},
+
 
 			javacOptions ++= {
 				given c: xsbti.FileConverter = (fileConverter).value
