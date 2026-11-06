@@ -1,0 +1,91 @@
+package name.rayrobdod.sbtJlink
+
+import sbt.*
+import sbt.Keys.*
+import sbt.util.CacheImplicits.given
+import scala.util.Using
+
+object JmodPlugin extends AutoPlugin:
+	override def requires = sbt.plugins.JvmPlugin
+	object autoImport:
+		val jmod = taskKey[xsbti.HashedVirtualFileRef]("Produce a jmod artifact")
+		val jmodOptions = taskKey[Seq[String]]("Additional options for jmod")
+	import autoImport.*
+
+	override lazy val globalSettings = Seq(
+		jmodOptions := Nil
+	)
+
+	private def unscopedSettings = Seq(
+	)
+
+	private def perScopeSettings(config:sbt.librarymanagement.Configuration) =
+		inConfig(config)(Seq(
+			jmod / artifact := {
+				Defaults.artifactSetting.value
+					.withType("jmod")
+					.withExtension("jmod")
+			},
+			jmod / artifactPath := Defaults.artifactPathSetting(jmod / artifact).value,
+			jmod := {
+				val conv = fileConverter.value
+				val stream = (jmod / streams).value
+				val logger = stream.log
+				val outFile = conv.toPath((jmod / artifactPath).value)
+
+				val args = locally:
+					val builder = Vector.newBuilder[String]
+					builder += "create"
+
+					(jmod / packageTimestamp).value.foreach: epoch =>
+						builder += "--date"
+						builder += java.time.format.DateTimeFormatter.ISO_INSTANT.format(java.time.Instant.ofEpochMilli(epoch))
+
+					(jmod / mainClass).value.foreach: clazz =>
+						builder += "--main-class"
+						builder += clazz
+
+					builder += "--class-path"
+					builder += exportedProducts.value.map(avf => conv.toPath(avf.data)).mkString(java.io.File.pathSeparator)
+
+					builder ++= jmodOptions.value
+
+					builder += outFile.toString
+					builder.result()
+				logger.debug(args.mkString(" "))
+
+				if java.nio.file.Files.exists(outFile) then
+					java.nio.file.Files.delete(outFile)
+
+				val tool = java.util.spi.ToolProvider.findFirst("jmod").get
+				val result =
+					Using.resource(stream.text("toolout")): toolout =>
+						Using.resource(stream.text("toolerr")): toolerr =>
+							tool.run(toolout, toolerr, args*)
+
+				if result != 0 then
+					var line: String = "";
+
+					Using.resource(stream.readText(stream.key, "toolout")): toolout =>
+						while
+							line = toolout.readLine()
+							null != line
+						do
+							logger.error(line)
+
+					Using.resource(stream.readText(stream.key, "toolerr")): toolerr =>
+						while
+							line = toolerr.readLine()
+							null != line
+						do
+							logger.error(line)
+
+					sys.error(s"jmod failed: $result")
+				else
+					val vf: xsbti.VirtualFile = conv.toVirtualFile(outFile)
+					Def.declareOutput(vf)
+					vf: xsbti.HashedVirtualFileRef
+			}
+		))
+
+	override lazy val projectSettings = unscopedSettings ++ perScopeSettings(Compile) ++ perScopeSettings(Test)
