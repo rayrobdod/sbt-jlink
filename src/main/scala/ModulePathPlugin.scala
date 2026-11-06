@@ -46,6 +46,36 @@ object ModulePathPlugin extends AutoPlugin:
 				moduleInfo.findAttribute(java.lang.classfile.Attributes.module).get.moduleName.name.stringValue
 	}
 
+	private def internalDependencyModulepathImplTask(
+			projectRef: ProjectRef,
+			conf: Configuration,
+			data: Def.Settings,
+			deps: sbt.internal.BuildDependencies,
+			track: TrackLevel,
+			log: Logger
+	) : Def.Initialize[Task[Classpath]] = Def.value[Task[Classpath]] {
+		val tasks = deps.classpath(projectRef)
+			// `filter` on `dep.configuration`?
+			.map: (dep: sbt.ClasspathDep[sbt.ProjectRef]) =>
+				dep.project
+			.map: (dep: ResolvedReference) =>
+				(dep / ConfigKey(conf.name) / fullModulepath).get(data) match
+					case Some(x) => x
+					case None => constant(Nil)
+
+		(tasks.toSeq.join).map(_.flatten.distinct)
+	}
+	private val internalDependencyModulepathImpl: Def.Initialize[Task[Classpath]] =
+		Def.task {((
+			thisProjectRef.value,
+			configuration.value,
+			settingsData.value,
+			buildDependencies.value,
+			trackInternalDependencies.value,
+			(internalDependencyModulepath / streams).value.log,
+		))}
+		.flatMapTask(internalDependencyModulepathImplTask)
+
 	private def perScopeSettings(config:sbt.librarymanagement.Configuration) = {
 		// using `inConfig` because `(config / jlink / streams).value` is claiming that `value / is not a member of sbt.librarymanagement.Configuration`
 		// despite `(config / target).value` definitively showing that Configuration does indeed have a `/` value
@@ -66,7 +96,9 @@ object ModulePathPlugin extends AutoPlugin:
 			externalDependencyModulepath := Def.uncached{
 				Classpaths.concat(unmanagedModulepath, managedModulepath).value
 			},
-			internalDependencyModulepath := Nil, // TODO
+			internalDependencyModulepath := Def.uncached {
+				internalDependencyModulepathImpl.value
+			},
 			dependencyModulepath := Def.uncached{
 				Classpaths.concat(internalDependencyModulepath, externalDependencyModulepath).value
 			},
