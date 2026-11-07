@@ -30,25 +30,6 @@ object ModulePathPlugin extends AutoPlugin:
 		ivyConfigurations += ModulePath,
 	)
 
-	private def moduleName(moduleRoot: Path): Option[String] = {
-		import java.util.zip.ZipFile.OPEN_READ
-		import java.lang.Runtime.Version.{parse => RuntimeVersion}
-		import scala.util.Using
-
-		Using
-			.resource(new java.util.jar.JarFile(moduleRoot.toFile, true, OPEN_READ, RuntimeVersion("17"))): jarfile =>
-				Option(jarfile.getJarEntry("module-info.class")).map: moduleInfoEntry =>
-
-					val transferStream = new java.io.ByteArrayOutputStream
-					Using.resource(jarfile.getInputStream(moduleInfoEntry)): is =>
-						is.transferTo(transferStream)
-
-					transferStream.toByteArray
-			.map: moduleInfoBytes =>
-				val moduleInfo = java.lang.classfile.ClassFile.of().parse(moduleInfoBytes)
-				moduleInfo.findAttribute(java.lang.classfile.Attributes.module).get.moduleName.name.stringValue
-	}
-
 	private def internalDependencyModulepathImplTask(
 			projectRef: ProjectRef,
 			conf: Configuration,
@@ -88,7 +69,7 @@ object ModulePathPlugin extends AutoPlugin:
 			discoveredModules := {
 				val c: xsbti.FileConverter = (fileConverter).value
 				(Compile / exportedProductJars).value.flatMap: attr =>
-					ModulePathPlugin.moduleName(c.toPath(attr.data))
+					GetModuleName.ofJar(c.toPath(attr.data))
 			},
 			mainModule := {
 				val discovered = discoveredModules.value
@@ -138,7 +119,7 @@ object ModulePathPlugin extends AutoPlugin:
 				(Compile / dependencyModulepath).value.map: attributed =>
 					val vf = attributed.data
 					val path = c.toPath(vf)
-					moduleName(path).getOrElse(throw new Exception(s"Module Path entry did not have module name: $path"))
+					GetModuleName.ofJar(path).getOrElse(throw new Exception(s"Module Path entry did not have module name: $path"))
 			},
 			dependencyAddModules := Def.uncached {
 				unmanagedAddModules.value ++ managedAddModules.value
