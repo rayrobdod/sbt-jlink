@@ -1,0 +1,8 @@
+> jlink
+
+# verify
+$ exists target/out/jvm/scala-3.8.4/jlink_standaloneJmod/jlink/
+$ exists target/out/jvm/scala-3.8.4/jlink_standaloneJmod/jlink/release
+> verify_jlink
+
+> jlinkRun
