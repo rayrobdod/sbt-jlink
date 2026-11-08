@@ -54,37 +54,18 @@ object JmodPlugin extends AutoPlugin:
 					builder.result()
 				logger.debug(args.mkString(" "))
 
-				if java.nio.file.Files.exists(outFile) then
-					java.nio.file.Files.delete(outFile)
+				java.nio.file.Files.deleteIfExists(outFile)
 
-				val tool = java.util.spi.ToolProvider.findFirst("jmod").get
-				val result =
-					Using.resource(stream.text("toolout")): toolout =>
-						Using.resource(stream.text("toolerr")): toolerr =>
-							tool.run(toolout, toolerr, args*)
+				RunTool(
+					"jmod",
+					args,
+					stream,
+					"jmod",
+				)
 
-				if result != 0 then
-					var line: String = "";
-
-					Using.resource(stream.readText(stream.key, "toolout")): toolout =>
-						while
-							line = toolout.readLine()
-							null != line
-						do
-							logger.error(line)
-
-					Using.resource(stream.readText(stream.key, "toolerr")): toolerr =>
-						while
-							line = toolerr.readLine()
-							null != line
-						do
-							logger.error(line)
-
-					sys.error(s"jmod failed: $result")
-				else
-					val vf: xsbti.VirtualFile = conv.toVirtualFile(outFile)
-					Def.declareOutput(vf)
-					vf: xsbti.HashedVirtualFileRef
+				val vf: xsbti.VirtualFile = conv.toVirtualFile(outFile)
+				Def.declareOutput(vf)
+				vf: xsbti.HashedVirtualFileRef
 			}
 		))
 

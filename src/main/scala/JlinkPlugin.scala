@@ -136,50 +136,21 @@ object JlinkPlugin extends AutoPlugin:
 				logger.debug(args.mkString(" "))
 
 				if java.nio.file.Files.exists(outDirectory) then
-					import java.nio.file.*
-					Files.walkFileTree(
+					java.nio.file.Files.walkFileTree(
 						outDirectory,
-						new FileVisitor[Path]:
-							def postVisitDirectory(path: Path, ex: java.io.IOException): FileVisitResult =
-								Files.delete(path)
-								FileVisitResult.CONTINUE
-							def preVisitDirectory(path: Path, attrs: attribute.BasicFileAttributes): FileVisitResult =
-								FileVisitResult.CONTINUE
-							def visitFile(path: Path, attrs: attribute.BasicFileAttributes): FileVisitResult =
-								Files.delete(path)
-								FileVisitResult.CONTINUE
-							def visitFileFailed(path: Path, ex: java.io.IOException): FileVisitResult =
-								FileVisitResult.TERMINATE
+						new RecursiveDeleteFileVisitor
 					)
 				end if
 
-				val tool = java.util.spi.ToolProvider.findFirst("jlink").get
-				val result =
-					Using.resource(stream.text("toolout")): toolout =>
-						Using.resource(stream.text("toolerr")): toolerr =>
-							tool.run(toolout, toolerr, args*)
+				RunTool(
+					"jlink",
+					args,
+					stream,
+					"jlink",
+				)
 
-				if result != 0 then
-					var line: String = "";
-
-					Using.resource(stream.readText(stream.key, "toolout")): toolout =>
-						while
-							line = toolout.readLine()
-							null != line
-						do
-							logger.error(line)
-
-					Using.resource(stream.readText(stream.key, "toolerr")): toolerr =>
-						while
-							line = toolerr.readLine()
-							null != line
-						do
-							logger.error(line)
-
-					sys.error(s"jlink failed: $result")
-				else
-					val vf: xsbti.VirtualFileRef = conv.toVirtualFile(outDirectory)
-					Def.declareOutputDirectory(vf)
+				val vf: xsbti.VirtualFileRef = conv.toVirtualFile(outDirectory)
+				Def.declareOutputDirectory(vf)
 			},
 
 
