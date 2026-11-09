@@ -3,6 +3,7 @@ lazy val isModule_standalone = project
 	.enablePlugins(ModulePathPlugin)
 	.settings(
 		autoScalaLibrary := false,
+		exportToModulePath := true,
 		TaskKey[Unit]("verify_discoveredModules") := Def.uncached {
 			val expected = Seq("name.rayrobdod.sbtJlink.sbtTest.isModule.standalone")
 			val actual = (Compile / discoveredModules).value

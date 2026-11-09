@@ -8,7 +8,9 @@ import java.nio.file.Path
 object ModulePathPlugin extends AutoPlugin:
 	override def requires = sbt.plugins.JvmPlugin
 	object autoImport:
-		val ModulePath = config("modulePath").hide
+		val ModulePath = config("modulePath")
+
+		val exportToModulePath = settingKey[Boolean]("If true, do not export packageBin to the compile classpath, instead export packageBin to the modulepath")
 
 		val mainModule = taskKey[Option[String]]("This project's java platform module")
 		val discoveredModules = taskKey[Seq[String]]("Discovered java platform modules in this project")
@@ -18,6 +20,7 @@ object ModulePathPlugin extends AutoPlugin:
 		val externalDependencyModulepath = taskKey[Classpath]("The classpath consisting of library dependencies, both managed and unmanaged.")
 		val internalDependencyModulepath = taskKey[Classpath]("The internal (inter-project) modulepath.")
 		val dependencyModulepath = taskKey[Classpath]("The modulepath consisting of internal and external, managed and unmanaged dependencies.")
+		val exportedModulepath = taskKey[Classpath]("Build products that go on the exported modulepath.")
 		val fullModulepath = taskKey[Classpath]("The exported modulepath, consisting of build products and unmanaged and managed, internal and external dependencies.")
 
 		val unmanagedAddModules = taskKey[Seq[String]]("Added module entries that as manually managed")
@@ -25,6 +28,10 @@ object ModulePathPlugin extends AutoPlugin:
 		val dependencyAddModules = taskKey[Seq[String]]("Added module entries, from all dependencies")
 		val fullAddModules = taskKey[Seq[String]]("Added module entries, from build products and all dependencies")
 	import autoImport.*
+
+	override def globalSettings = Seq(
+		exportToModulePath := false,
+	)
 
 	private def unscopedSettings = Seq(
 		ivyConfigurations += ModulePath,
@@ -38,16 +45,19 @@ object ModulePathPlugin extends AutoPlugin:
 			track: TrackLevel,
 			log: Logger
 	) : Def.Initialize[Task[Classpath]] = Def.value[Task[Classpath]] {
-		val tasks = deps.classpath(projectRef)
+		deps.classpath(projectRef)
 			// `filter` on `dep.configuration`?
 			.map: (dep: sbt.ClasspathDep[sbt.ProjectRef]) =>
 				dep.project
 			.map: (dep: ResolvedReference) =>
-				(dep / ConfigKey(conf.name) / fullModulepath).get(data) match
+				(dep / ConfigKey(conf.name) / exportedModulepath).get(data) match
 					case Some(x) => x
 					case None => constant(Nil)
-
-		(tasks.toSeq.join).map(_.flatten.distinct)
+			.join
+			.map: classpaths =>
+				classpaths
+					.flatten
+					.distinct
 	}
 	private val internalDependencyModulepathImpl: Def.Initialize[Task[Classpath]] =
 		Def.task {((
@@ -60,6 +70,14 @@ object ModulePathPlugin extends AutoPlugin:
 		))}
 		.flatMapTask(internalDependencyModulepathImplTask)
 
+	private def EmptyIfMainModuleIsDefined(key: TaskKey[Classpath]): Def.Setting[Task[Classpath]] =
+		key := Def.uncached:
+			if exportToModulePath.value then
+				Nil
+			else
+				key.value
+	end EmptyIfMainModuleIsDefined
+
 	private def perScopeSettings(config:sbt.librarymanagement.Configuration) = {
 		// using `inConfig` because `(config / jlink / streams).value` is claiming that `value / is not a member of sbt.librarymanagement.Configuration`
 		// despite `(config / target).value` definitively showing that Configuration does indeed have a `/` value
@@ -68,8 +86,8 @@ object ModulePathPlugin extends AutoPlugin:
 
 			discoveredModules := {
 				val c: xsbti.FileConverter = (fileConverter).value
-				(Compile / exportedProductJars).value.flatMap: attr =>
-					GetModuleName.ofJar(c.toPath(attr.data))
+				val jarFileVF = (Compile / packageBin).value
+				GetModuleName.ofJar(c.toPath(jarFileVF)).toSeq
 			},
 			mainModule := {
 				val discovered = discoveredModules.value
@@ -80,9 +98,26 @@ object ModulePathPlugin extends AutoPlugin:
 			},
 
 
-			// removing modules from the classpath doesn't seem to be necessary.
-			// Classloading is "platform-dependent" so this isn't guaranteed,
-			// however, based on the tests leaving modulepath items in the classpath seems fine
+			packageBin / configuration := {
+				if exportToModulePath.value then
+					ModulePath
+				else
+					(packageBin / configuration).value
+			},
+
+			EmptyIfMainModuleIsDefined(exportedProductsNoTracking),
+			EmptyIfMainModuleIsDefined(exportedProductsIfMissing),
+			EmptyIfMainModuleIsDefined(exportedProducts),
+			EmptyIfMainModuleIsDefined(exportedProductJarsNoTracking),
+			EmptyIfMainModuleIsDefined(exportedProductJarsIfMissing),
+			EmptyIfMainModuleIsDefined(exportedProductJars),
+
+			exportedModulepath := {
+				if exportToModulePath.value then
+					Seq(Attributed.blank((Compile / packageBin).value: xsbti.HashedVirtualFileRef))
+				else
+					Seq.empty
+			},
 
 
 			unmanagedModulepath := Nil, // TODO
@@ -106,10 +141,7 @@ object ModulePathPlugin extends AutoPlugin:
 				Classpaths.concat(internalDependencyModulepath, externalDependencyModulepath).value
 			},
 			fullModulepath := {
-				if mainModule.value.isDefined then
-					dependencyModulepath.value ++ exportedProducts.value
-				else
-					dependencyModulepath.value
+				Classpaths.concat(dependencyModulepath, exportedModulepath).value
 			},
 
 
@@ -119,13 +151,13 @@ object ModulePathPlugin extends AutoPlugin:
 				(Compile / dependencyModulepath).value.map: attributed =>
 					val vf = attributed.data
 					val path = c.toPath(vf)
-					GetModuleName.ofJar(path).getOrElse(throw new Exception(s"Module Path entry did not have module name: $path"))
+					GetModuleName.ofJar(path).getOrElse(sys.error(s"ModulePath entry did not have module name: $path"))
 			},
 			dependencyAddModules := Def.uncached {
 				unmanagedAddModules.value ++ managedAddModules.value
 			},
 			fullAddModules := {
-				if mainModule.value.isDefined then
+				if exportToModulePath.value then
 					dependencyAddModules.value :+ mainModule.value.get
 				else
 					dependencyAddModules.value

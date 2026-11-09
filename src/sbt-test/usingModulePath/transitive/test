@@ -1,5 +1,9 @@
-> compile
+> dependent/verify_dependencyModulepath
+> dependent/verify_dependencyClasspath
 
-# verify
-> verify_modulepath
+> dependent/compile
+
+> dependent/verify_fullModulepath
+> dependent/verify_fullClasspath
+
 > dependent/Compile/run

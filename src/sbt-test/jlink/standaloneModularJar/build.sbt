@@ -3,8 +3,19 @@ lazy val jlink_standaloneModularJar = project
 	.enablePlugins(JlinkPlugin, ModulePathPlugin)
 	.settings(
 		autoScalaLibrary := false,
+		exportToModulePath := true,
+		TaskKey[Unit]("verify_jlink_fullModulepath") := Def.uncached {
+			val expected = Seq(
+				"jlink_standalonemodularjar_3-0.1.0-SNAPSHOT-modulePath.jar",
+			)
+			val modules = (Compile / jlink / fullModulepath).value
+			val actual = modules.map(_.data.name)
+
+			if expected != actual then
+				sys.error(modules.mkString("fullModulepath did not match expected:\n  ", "\n  ", ""))
+		},
 		TaskKey[Unit]("verify_jlink") := Def.uncached {
-			(Compile / jlink).value
+			val _ = (Compile / jlink).value
 
 			val releaseFile = (Compile / jlink / target).value / "release"
 			val releaseContents = java.nio.file.Files.readString(releaseFile.toPath)

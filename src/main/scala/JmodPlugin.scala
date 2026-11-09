@@ -27,6 +27,9 @@ object JmodPlugin extends AutoPlugin:
 					.withExtension("jmod")
 			},
 			jmod / artifactPath := Defaults.artifactPathSetting(jmod / artifact).value,
+			jmod / fullClasspath := {
+				Seq(Attributed.blank((Compile / packageBin).value))
+			},
 			jmod := {
 				val conv = fileConverter.value
 				val stream = (jmod / streams).value
@@ -46,7 +49,7 @@ object JmodPlugin extends AutoPlugin:
 						builder += clazz
 
 					builder += "--class-path"
-					builder += exportedProducts.value.map(avf => conv.toPath(avf.data)).mkString(java.io.File.pathSeparator)
+					builder += (jmod / fullClasspath).value.map(avf => conv.toPath(avf.data)).mkString(java.io.File.pathSeparator)
 
 					builder ++= jmodOptions.value
 

@@ -6,7 +6,7 @@ import sbt.util.CacheImplicits.given
 import scala.util.Using
 
 object JlinkPlugin extends AutoPlugin:
-	override def requires = sbt.plugins.JvmPlugin
+	override def requires = ModulePathPlugin
 	object autoImport:
 		val jlinkRun = inputKey[Unit]("Runs the artifact built by jlink")
 		val jlink = taskKey[Unit]("assemble a custom runtime image")
@@ -28,14 +28,9 @@ object JlinkPlugin extends AutoPlugin:
 				.map: file =>
 					Seq(Attributed.blank(file))
 
-			val exportedProductsValue = (projectRef / ConfigKey(conf.name) / exportedProducts).value
-			val mainModuleValue = ((projectRef / ConfigKey(conf.name) / mainModule) ?? None).value
-				.map: _ =>
-					exportedProductsValue
+			val exportedModuleValue = (projectRef / ConfigKey(conf.name) / exportedModulepath).value
 
-			jmodValue
-				.orElse(mainModuleValue)
-				.getOrElse(Seq.empty)
+			jmodValue.getOrElse(exportedModuleValue)
 		}
 
 	private def selfModulepathImpl: Def.Initialize[Task[Classpath]] =
@@ -55,7 +50,6 @@ object JlinkPlugin extends AutoPlugin:
 	): Def.Initialize[Task[Classpath]] =
 		Def.value[Task[Classpath]] {
 			deps.classpath(projectRef)
-				// `filter` on `dep.configuration`?
 				.map: (dep: sbt.ClasspathDep[sbt.ProjectRef]) =>
 					dep.project
 				.map: (dep: ResolvedReference) =>
@@ -93,21 +87,11 @@ object JlinkPlugin extends AutoPlugin:
 			jlink / dependencyModulepath := {
 				Classpaths.concat(jlink / internalDependencyModulepath, jlink / externalDependencyModulepath).value
 			},
-			jlink / exportedProducts := Def.uncached {
+			jlink / exportedModulepath := Def.uncached {
 				selfModulepathImpl.value
 			},
 			jlink / fullModulepath := {
-				Classpaths.concat(jlink / dependencyModulepath, jlink / exportedProducts).value
-			},
-
-
-			jlink / fullAddModules := {
-				val conv = fileConverter.value
-				val modulePathPluginModules = (fullAddModules ?? Seq.empty).value
-				val jmodPluginModules = jmod.?.value.map(vf => GetModuleName.ofJmod(conv.toPath(vf)))
-
-				modulePathPluginModules
-					++ jmodPluginModules
+				Classpaths.concat(jlink / dependencyModulepath, jlink / exportedModulepath).value
 			},
 
 
@@ -117,6 +101,9 @@ object JlinkPlugin extends AutoPlugin:
 				val stream = (jlink / streams).value
 				val logger = stream.log
 				val outDirectory = (jlink / target).value.toPath
+
+				if fullClasspath.value.nonEmpty then
+					logger.warn("classpath will not be included in jlink output")
 
 				val args = locally:
 					val builder = Vector.newBuilder[String]

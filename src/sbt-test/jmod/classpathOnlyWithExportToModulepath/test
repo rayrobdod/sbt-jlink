@@ -1,0 +1,5 @@
+> jmod
+
+# verify
+$ exists target/out/jvm/scala-3.8.4/jmod_classpathOnly/jmod_classpathOnly_3-0.1.0-SNAPSHOT.jmod
+> verify_jmod

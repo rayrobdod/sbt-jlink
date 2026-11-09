@@ -1,8 +1,9 @@
+> verify_jlink_fullModulepath
+
 > jlink
 
-# verify
-$ exists target/out/jvm/scala-3.8.4/jlink_standaloneModularJar/jlink/
-$ exists target/out/jvm/scala-3.8.4/jlink_standaloneModularJar/jlink/release
+$ exists target/out/jvm/scala-3.8.4/jlink_standalonemodularjar/jlink/
+$ exists target/out/jvm/scala-3.8.4/jlink_standalonemodularjar/jlink/release
 > verify_jlink
 
 > jlinkRun
