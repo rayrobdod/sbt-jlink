@@ -11,6 +11,13 @@ object JlinkPlugin extends AutoPlugin:
 		val jlinkRun = inputKey[Unit]("Runs the artifact built by jlink")
 		val jlink = taskKey[Unit]("assemble a custom runtime image")
 		val jlinkOptions = taskKey[Seq[String]]("Additional options for jlink")
+
+		final case class MainModule(module: String, clazz: Option[String]):
+			override def toString: String = clazz.fold(module)(c => s"$module/$c")
+		object MainModule:
+			def apply(module: String): MainModule = MainModule(module, Option.empty)
+			def apply(module: String, clazz: String): MainModule = MainModule(module, Option(clazz))
+		val jlinkMainModule = taskKey[Option[MainModule]]("Defines the main module for running.")
 	import autoImport.*
 	import ModulePathPlugin.autoImport.*
 	import JmodPlugin.autoImport.*
@@ -152,24 +159,27 @@ object JlinkPlugin extends AutoPlugin:
 					envVars = Map.empty,
 				)
 			},
-			jlinkRun / mainModule := Def.uncached {
+			jlinkRun / jlinkMainModule := Def.uncached {
 				val conv = fileConverter.value
 				jmod.?.value
 					.map: jmodFile =>
-						GetModuleName.ofJmod(conv.toPath(jmodFile))
+						MainModule(GetModuleName.ofJmod(conv.toPath(jmodFile)), Option.empty)
 					.orElse:
-						val mainModuleValue = (mainModule ?? None).value
+						val mainModuleValue = exportedAddModules.value
 						val mainClassValue = mainClass.value
 
-						mainModuleValue.zip(mainClassValue).map: (mod, clazz) =>
-							s"${mod}/${clazz}"
+						if mainModuleValue.size > 1 then
+							sys.error(s"don't know which module is 'main': $mainModuleValue")
+
+						mainModuleValue.headOption.zip(mainClassValue).map: (mod, clazz) =>
+							MainModule(mod, Option(clazz))
 			},
 			jlinkRun := Def.uncached {
 				jlink.value
 
 				val logger = (jlink / streams).value.log
 
-				val args = Seq("--module", (jlinkRun / mainModule).value.getOrElse(sys.error("No main module set")))
+				val args = Seq("--module", (jlinkRun / jlinkMainModule).value.getOrElse(sys.error("No main module set")).toString)
 				logger.debug(args.mkString(" "))
 
 				Fork.java.apply((jlinkRun / forkOptions).value, args)

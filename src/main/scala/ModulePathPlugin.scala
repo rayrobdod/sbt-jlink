@@ -11,9 +11,7 @@ object ModulePathPlugin extends AutoPlugin:
 		val ModulePath = config("modulePath")
 
 		val exportToModulePath = settingKey[Boolean]("If true, do not export packageBin to the compile classpath, instead export packageBin to the modulepath")
-
-		val mainModule = taskKey[Option[String]]("This project's java platform module")
-		val discoveredModules = taskKey[Seq[String]]("Discovered java platform modules in this project")
+		val discoveredAddModules = taskKey[Option[String]]("The discovered java platform modules in this project")
 
 		val unmanagedModulepath = taskKey[Classpath]("Modulepath entries (deep) that are manually managed.")
 		val managedModulepath = taskKey[Classpath]("The modulepath consisting of external, managed library dependencies.")
@@ -26,6 +24,7 @@ object ModulePathPlugin extends AutoPlugin:
 		val unmanagedAddModules = taskKey[Seq[String]]("Added module entries that as manually managed")
 		val managedAddModules = taskKey[Seq[String]]("Added module entries from external, managed library dependencies")
 		val dependencyAddModules = taskKey[Seq[String]]("Added module entries, from all dependencies")
+		val exportedAddModules = taskKey[Seq[String]]("This project's java platform module")
 		val fullAddModules = taskKey[Seq[String]]("Added module entries, from build products and all dependencies")
 	import autoImport.*
 
@@ -84,17 +83,10 @@ object ModulePathPlugin extends AutoPlugin:
 		inConfig(config)(Seq(
 			run / fork := true,
 
-			discoveredModules := {
+			discoveredAddModules := {
 				val c: xsbti.FileConverter = (fileConverter).value
 				val jarFileVF = (Compile / packageBin).value
-				GetModuleName.ofJar(c.toPath(jarFileVF)).toSeq
-			},
-			mainModule := {
-				val discovered = discoveredModules.value
-				if discovered.size == 1 then
-					discovered.headOption
-				else
-					None
+				GetModuleName.ofJar(c.toPath(jarFileVF))
 			},
 
 
@@ -156,11 +148,14 @@ object ModulePathPlugin extends AutoPlugin:
 			dependencyAddModules := Def.uncached {
 				unmanagedAddModules.value ++ managedAddModules.value
 			},
-			fullAddModules := {
+			exportedAddModules := {
 				if exportToModulePath.value then
-					dependencyAddModules.value :+ mainModule.value.get
+					discoveredAddModules.value.toSeq
 				else
-					dependencyAddModules.value
+					Seq.empty
+			},
+			fullAddModules := {
+				dependencyAddModules.value ++ exportedAddModules.value
 			},
 
 

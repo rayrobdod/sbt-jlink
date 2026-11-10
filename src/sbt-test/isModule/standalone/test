@@ -1,5 +1,5 @@
 > compile
 
 # verify
-> verify_discoveredModules
+> verify_discoveredAddModules
 > run
