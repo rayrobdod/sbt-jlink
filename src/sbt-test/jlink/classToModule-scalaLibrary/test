@@ -1,0 +1,9 @@
+> dependent/verify_jlink_fullModulepath
+
+> dependent/jlink
+
+$ exists target/out/jvm/scala-3.8.4/dependent/jlink/
+$ exists target/out/jvm/scala-3.8.4/dependent/jlink/release
+> dependent/verify_jlink
+
+> dependent/jlinkRun

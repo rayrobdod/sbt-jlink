@@ -1,6 +1,7 @@
 lazy val jlink = project
 	.in(file("."))
 	.enablePlugins(SbtPlugin)
+	.enablePlugins(ContrabandPlugin)
 	.settings(
 		sbtPlugin := true,
 

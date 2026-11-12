@@ -1,0 +1,12 @@
+package name.rayrobdod.sbtJlink
+@target(Scala)
+
+type ModuleInfo {
+	moduleName: String!
+	moduleVersion: String
+	requires: [String]
+	exports: [String]
+	opens: [String]
+	uses: [String]
+	provides: raw"Map[String, Vector[String]]"!
+}
