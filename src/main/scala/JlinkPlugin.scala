@@ -1,7 +1,7 @@
 package name.rayrobdod.sbtJlink
 
 import sbt.*
-import sbt.Keys.*
+import sbt.Keys.{name => *, *}
 import sbt.util.CacheImplicits.given
 import scala.util.Using
 
@@ -12,11 +12,9 @@ object JlinkPlugin extends AutoPlugin:
 		val jlink = taskKey[Unit]("assemble a custom runtime image")
 		val jlinkOptions = taskKey[Seq[String]]("Additional options for jlink")
 
-		final case class MainModule(module: String, clazz: Option[String]):
-			override def toString: String = clazz.fold(module)(c => s"$module/$c")
-		object MainModule:
-			def apply(module: String): MainModule = MainModule(module, Option.empty)
-			def apply(module: String, clazz: String): MainModule = MainModule(module, Option(clazz))
+		type JlinkMainModule = name.rayrobdod.sbtJlink.MainModule
+		val JlinkMainModule = name.rayrobdod.sbtJlink.MainModule
+
 		val jlinkMainModule = taskKey[Option[MainModule]]("Defines the main module for running.")
 	import autoImport.*
 	import ModulePathPlugin.autoImport.*

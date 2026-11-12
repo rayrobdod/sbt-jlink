@@ -1,0 +1,9 @@
+package name.rayrobdod.sbtJlink
+@target(Scala)
+
+type MainModule {
+	moduleName: String!
+	mainClass: String
+
+	#xtostring mainClass.fold(moduleName)(c => s"$moduleName/$c")
+}
