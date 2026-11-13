@@ -1,0 +1,13 @@
+package name.rayrobdod.sbtJlink
+@target(Scala)
+
+type JlinkLauncher {
+	name: String!
+	mainModule: MainModule!
+
+	#xtostring s"$name=$mainModule";
+
+	#xcompanion def apply(name: String, moduleName: String, mainClass: Option[String]): JlinkLauncher = {
+	#xcompanion   new JlinkLauncher(name, MainModule(moduleName, mainClass))
+	#xcompanion }
+}

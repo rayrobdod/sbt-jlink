@@ -4,6 +4,7 @@ import sbt.*
 import sbt.Keys.{name => *, *}
 import sbt.util.CacheImplicits.given
 import scala.util.Using
+import name.rayrobdod.sbtJlink.JsonProtocol.given
 
 object JlinkPlugin extends AutoPlugin:
 	override def requires = ModulePathPlugin
@@ -15,7 +16,12 @@ object JlinkPlugin extends AutoPlugin:
 		type JlinkMainModule = name.rayrobdod.sbtJlink.MainModule
 		val JlinkMainModule = name.rayrobdod.sbtJlink.MainModule
 
+		type JlinkLauncher = name.rayrobdod.sbtJlink.JlinkLauncher
+		val JlinkLauncher = name.rayrobdod.sbtJlink.JlinkLauncher
+
 		val jlinkMainModule = taskKey[Option[MainModule]]("Defines the main module for running.")
+		val jlinkDiscoveredLaunchers = taskKey[Seq[JlinkLauncher]]("Discovered launchers to add to the jlink build")
+		val jlinkLaunchers = taskKey[Seq[JlinkLauncher]]("Launchers to add to the jlink build")
 	import autoImport.*
 	import ModulePathPlugin.autoImport.*
 	import JmodPlugin.autoImport.*
@@ -100,6 +106,30 @@ object JlinkPlugin extends AutoPlugin:
 			},
 
 
+			jlink / jlinkDiscoveredLaunchers := {
+				val conv = fileConverter.value
+				val jmodLaunchers = jmod.?.value.map: jmodFile =>
+					val moduleName = GetModuleName.ofJmod(conv.toPath(jmodFile))
+					JlinkLauncher(moduleName.split("\\.").last, moduleName, Option.empty)
+				val jmodMainClass = (jmod / mainClass).?.value
+
+				val discoveredAddModulesValue = discoveredAddModules.value.to(Seq)
+				val mainClassLaunchers = discoveredMainClasses.value
+					.flatMap: mainClass =>
+						discoveredAddModulesValue.map: mainModule =>
+							JlinkLauncher(mainClass.split("\\.").last, MainModule(mainModule, Option(mainClass)))
+					.filter: mainClassLauncher =>
+						// exclude a mainClassLauncher if it points to the same main class as the jmodLauncher
+						jmodLaunchers.map(_.mainModule.moduleName).forall: jmodModuleName =>
+							jmodMainClass.forall: jmodMainClass =>
+								mainClassLauncher.mainModule.moduleName != jmodModuleName ||
+									mainClassLauncher.mainModule.mainClass != jmodMainClass
+
+				jmodLaunchers.to(Vector) ++ mainClassLaunchers.to(Vector)
+			},
+			jlink / jlinkLaunchers := (jlink / jlinkDiscoveredLaunchers).value,
+
+
 			jlink / target := (config / target).value / "jlink",
 			jlink := {
 				val conv = fileConverter.value
@@ -121,6 +151,10 @@ object JlinkPlugin extends AutoPlugin:
 
 					builder += "--add-modules"
 					builder += (jlink / fullAddModules).value.mkString(",")
+
+					(jlink / jlinkLaunchers).value.foreach: launcher =>
+						builder += "--launcher"
+						builder += launcher.toString
 
 					builder ++= jlinkOptions.value
 

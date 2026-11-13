@@ -14,12 +14,26 @@ lazy val jlink_standaloneJmod = project
 			if expected != actual then
 				sys.error(modules.mkString("fullModulepath did not match expected:\n  ", "\n  ", ""))
 		},
+		TaskKey[Unit]("verify_jlink_jlinkLaunchers") := Def.uncached {
+			val expected = Seq(
+				JlinkLauncher("main", "main", None)
+			)
+			val actual = (Compile / jlink / jlinkLaunchers).value
+
+			if expected != actual then
+				sys.error(actual.mkString("jlinkLaunchers did not match expected:\n  ", "\n  ", ""))
+		},
 		TaskKey[Unit]("verify_jlink") := Def.uncached {
 			val _ = (Compile / jlink).value
 
-			val releaseFile = (Compile / jlink / target).value / "release"
-			val releaseContents = java.nio.file.Files.readString(releaseFile.toPath)
-			if ! releaseContents.contains("MODULES=\"java.base main\"") then
-				sys.error(s"`release` contents:\n$releaseContents")
+			def fileContains(subpath: String, expecting: String): Unit =
+				val file = (Compile / jlink / target).value / subpath
+				val contents = java.nio.file.Files.readString(file.toPath)
+				if ! contents.contains(expecting) then
+					sys.error(s"`$subpath` contents:\n$contents")
+
+			fileContains("release", "MODULES=\"java.base main\"")
+			fileContains("bin/main", " -m main/main.Main ")
+			fileContains("bin/main.bat", " -m main/main.Main ")
 		},
 	)

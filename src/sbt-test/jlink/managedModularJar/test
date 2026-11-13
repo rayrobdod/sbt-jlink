@@ -1,4 +1,5 @@
 > verify_jlink_fullModulepath
+> verify_jlink_jlinkLaunchers
 
 > jlink
 

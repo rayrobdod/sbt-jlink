@@ -1,4 +1,5 @@
 > dependent/verify_jlink_fullModulepath
+> dependent/verify_jlink_jlinkLaunchers
 
 > dependent/jlink
 
