@@ -1,0 +1,22 @@
+name: Run Tests
+on: [push, pull_request]
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ ubuntu-latest, windows-latest ]
+        java: [ 25 ]
+    runs-on: ${{ matrix.os }}
+    name: Test-${{ matrix.os }}-${{ matrix.java }}
+    steps:
+    - uses: actions/checkout@v7
+    - uses: coursier/cache-action@v9
+    - uses: coursier/setup-action@v3
+      with:
+        apps: sbt
+        jvm: zulu:${{matrix.java}}
+    - name: sbt test
+      run: sbt test
+    - name: sbt scripted
+      run: sbt scripted
