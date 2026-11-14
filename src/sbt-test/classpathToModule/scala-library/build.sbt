@@ -22,4 +22,11 @@ lazy val scalaLibraryModule = project
 			if expected != actual then
 				sys.error("moduleInfo did not match expected")
 		},
+		TaskKey[Unit]("verify_classpathToModuleModuleInfoClass") := Def.uncached {
+			val left = (Compile / classpathToModuleModuleInfoClass).value
+			val right = (Test / classpathToModuleModuleInfoClass).value
+
+			if left == right then
+				sys.error("Compile and Test write to the same file")
+		},
 	)

@@ -208,8 +208,8 @@ object ClasspathToModulePlugin extends AutoPlugin:
 				val conv = fileConverter.value
 				val stream = (classpathToModule / streams).value
 				val logger = stream.log
-				val tempDirectory = ((config / target).value / "classpathToModule").toPath
-				val tempJdepsFile = ((config / target).value / "classpathToModule-jdeps.jar").toPath
+				val tempDirectory = ((config / target).value / s"classpathToModule-jdeps-${config.name}").toPath
+				val tempJdepsFile = ((config / target).value / s"classpathToModule-jdeps-${config.name}.jar").toPath
 
 				val sources = fullClasspath.value.map(avf => conv.toPath(avf.data))
 
@@ -279,12 +279,19 @@ object ClasspathToModulePlugin extends AutoPlugin:
 			},
 
 
+			classpathToModuleModuleInfoClass / artifactPath := {
+				val conv = fileConverter.value
+				val tempDirectory = (target.value / s"classpathToModule-${config.name}").toPath
+				val entry = "module-info.class"
+				conv.toVirtualFile(tempDirectory / entry)
+			},
 			classpathToModuleModuleInfoClass := {
 				val conv = fileConverter.value
 				val data = classpathToModuleModuleInfo.value
-				val tempDirectory = ((config / target).value / "classpathToModule").toPath
 				val entry = "module-info.class"
-				val outputFile = tempDirectory / entry
+				val outputFile = conv.toPath((classpathToModuleModuleInfoClass / artifactPath).value)
+
+				java.nio.file.Files.createDirectories(outputFile.getParent)
 
 				java.lang.classfile.ClassFile.of().buildModuleTo(
 					outputFile,
@@ -339,7 +346,7 @@ object ClasspathToModulePlugin extends AutoPlugin:
 				val conv = fileConverter.value
 				val stream = (classpathToModule / streams).value
 				val logger = stream.log
-				val tempDirectory = ((config / target).value / "classpathToModule").toPath
+				val tempDirectory = ((config / target).value / s"classpathToModule-${config.name}").toPath
 				val outputFile = conv.toPath((classpathToModule / artifactPath).value)
 
 				val sources = fullClasspath.value.map(avf => conv.toPath(avf.data))

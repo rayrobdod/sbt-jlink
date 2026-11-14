@@ -1,0 +1,11 @@
+> base/Compile/compile
+
+> base/verify_Compile_fullModulepath
+> base/verify_Compile_fullClasspath
+
+> base/Test/compile
+
+> base/verify_Test_fullModulepath
+> base/verify_Test_fullClasspath
+
+> base/Test/test

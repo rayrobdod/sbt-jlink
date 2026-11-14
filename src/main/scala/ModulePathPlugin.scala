@@ -9,6 +9,7 @@ object ModulePathPlugin extends AutoPlugin:
 	override def requires = sbt.plugins.JvmPlugin
 	object autoImport:
 		val ModulePath = config("modulePath")
+		val TestModulepath = config("test-modulepath").extend(ModulePath)
 
 		val exportToModulePath = settingKey[Boolean]("If true, do not export packageBin to the compile classpath, instead export packageBin to the modulepath")
 		val discoveredAddModules = taskKey[Option[String]]("The discovered java platform modules in this project")
@@ -34,6 +35,30 @@ object ModulePathPlugin extends AutoPlugin:
 
 	private def unscopedSettings = Seq(
 		ivyConfigurations += ModulePath,
+		ivyConfigurations += TestModulepath,
+
+		Compile / managedModulepath := Def.uncached {
+			val c: xsbti.FileConverter = (fileConverter).value
+
+			update.value
+				.filter(configurationFilter(ModulePath.name))
+				.allFiles
+				.map(f => c.toVirtualFile(f.toPath))
+				.map(f => f: xsbti.HashedVirtualFileRef)
+				.map(f => Attributed.blank(f))
+		},
+		Test / managedModulepath := Def.uncached {
+			val c: xsbti.FileConverter = (fileConverter).value
+
+			update.value
+				.filter(configurationFilter(TestModulepath.name))
+				.allFiles
+				.map(f => c.toVirtualFile(f.toPath))
+				.map(f => f: xsbti.HashedVirtualFileRef)
+				.map(f => Attributed.blank(f))
+		},
+		Compile / exportToModulePath := exportToModulePath.value,
+		Test / exportToModulePath := exportToModulePath.value,
 	)
 
 	private def internalDependencyModulepathImplTask(
@@ -69,13 +94,41 @@ object ModulePathPlugin extends AutoPlugin:
 		))}
 		.flatMapTask(internalDependencyModulepathImplTask)
 
-	private def EmptyIfMainModuleIsDefined(key: TaskKey[Classpath]): Def.Setting[Task[Classpath]] =
+	private def EmptyIfMainModuleIsDefined(config:sbt.librarymanagement.Configuration, key: TaskKey[Classpath]): Def.Setting[Task[Classpath]] =
 		key := Def.uncached:
-			if exportToModulePath.value then
+			if (config / exportToModulePath).value then
 				Nil
 			else
 				key.value
 	end EmptyIfMainModuleIsDefined
+
+	/**
+	 * `--add-modules` is cumulative, but `--module-path` is last wins
+	 * Just avoid having multiple of either options
+	 */
+	private def insertModules(prevOptions: Seq[String], addedModulepath: Seq[Path], addedAddModules: Seq[String]): Seq[String] =
+		val retval = prevOptions.to(scala.collection.mutable.Buffer)
+
+		def append(key: String, separator: String, addends: Seq[String]): Unit =
+			if addends.nonEmpty then
+				val index = retval.indexOf(key)
+				if index < 0 then
+					retval += key
+					retval += addends.mkString(separator)
+				else
+					retval(index + 1) = retval(index + 1)
+						.split(separator)
+						.to(Vector)
+						.++(addends)
+						.distinct
+						.mkString(separator)
+		end append
+
+		append("--module-path", java.io.File.pathSeparator, addedModulepath.map(_.toString))
+		append("--add-modules", ",", addedAddModules)
+
+		retval.to(Vector)
+	end insertModules
 
 	private def perScopeSettings(config:sbt.librarymanagement.Configuration) = {
 		// using `inConfig` because `(config / jlink / streams).value` is claiming that `value / is not a member of sbt.librarymanagement.Configuration`
@@ -92,37 +145,32 @@ object ModulePathPlugin extends AutoPlugin:
 
 			packageBin / configuration := {
 				if exportToModulePath.value then
-					ModulePath
+					if Compile == (packageBin / configuration).value then
+						ModulePath
+					else if Test == (packageBin / configuration).value then
+						TestModulepath
+					else
+						???
 				else
 					(packageBin / configuration).value
 			},
 
-			EmptyIfMainModuleIsDefined(exportedProductsNoTracking),
-			EmptyIfMainModuleIsDefined(exportedProductsIfMissing),
-			EmptyIfMainModuleIsDefined(exportedProducts),
-			EmptyIfMainModuleIsDefined(exportedProductJarsNoTracking),
-			EmptyIfMainModuleIsDefined(exportedProductJarsIfMissing),
-			EmptyIfMainModuleIsDefined(exportedProductJars),
+			EmptyIfMainModuleIsDefined(config, exportedProductsNoTracking),
+			EmptyIfMainModuleIsDefined(config, exportedProductsIfMissing),
+			EmptyIfMainModuleIsDefined(config, exportedProducts),
+			EmptyIfMainModuleIsDefined(config, exportedProductJarsNoTracking),
+			EmptyIfMainModuleIsDefined(config, exportedProductJarsIfMissing),
+			EmptyIfMainModuleIsDefined(config, exportedProductJars),
 
 			exportedModulepath := {
 				if exportToModulePath.value then
-					Seq(Attributed.blank((Compile / packageBin).value: xsbti.HashedVirtualFileRef))
+					Seq(Attributed.blank((packageBin).value: xsbti.HashedVirtualFileRef))
 				else
 					Seq.empty
 			},
 
 
 			unmanagedModulepath := Nil, // TODO
-			managedModulepath := Def.uncached {
-				val c: xsbti.FileConverter = (fileConverter).value
-
-				update.value
-					.filter(configurationFilter(ModulePath.name))
-					.allFiles
-					.map(f => c.toVirtualFile(f.toPath))
-					.map(f => xsbti.HashedVirtualFileRef.of(f.id(), f.contentHashStr(), f.sizeBytes()))
-					.map(f => Attributed.blank(f))
-			},
 			externalDependencyModulepath := Def.uncached{
 				Classpaths.concat(unmanagedModulepath, managedModulepath).value
 			},
@@ -143,7 +191,7 @@ object ModulePathPlugin extends AutoPlugin:
 				(Compile / dependencyModulepath).value.map: attributed =>
 					val vf = attributed.data
 					val path = c.toPath(vf)
-					GetModuleName.ofJar(path).getOrElse(sys.error(s"ModulePath entry did not have module name: $path"))
+					GetModuleName.ofJar(path).getOrElse(sys.error(s"Modulepath entry did not have module name: $path"))
 			},
 			dependencyAddModules := Def.uncached {
 				unmanagedAddModules.value ++ managedAddModules.value
@@ -159,31 +207,21 @@ object ModulePathPlugin extends AutoPlugin:
 			},
 
 
-			javacOptions ++= {
+			javacOptions := {
 				given c: xsbti.FileConverter = (fileConverter).value
-				val retval = List.newBuilder[String]
-				if (dependencyModulepath).value.nonEmpty then
-					retval += "--module-path"
-					retval += (dependencyModulepath).value.files.mkString(java.io.File.pathSeparator)
-				end if
-				if (dependencyAddModules).value.nonEmpty then
-					retval += "--add-modules"
-					retval += (dependencyAddModules).value.mkString(",")
-				end if
-				retval.result()
+				insertModules(
+					javacOptions.value,
+					(dependencyModulepath).value.files,
+					(dependencyAddModules).value,
+				)
 			},
-			javaOptions ++= {
+			javaOptions := {
 				given c: xsbti.FileConverter = (fileConverter).value
-				val retval = List.newBuilder[String]
-				if (fullModulepath).value.nonEmpty then
-					retval += "--module-path"
-					retval += (fullModulepath).value.files.mkString(java.io.File.pathSeparator)
-				end if
-				if (fullAddModules).value.nonEmpty then
-					retval += "--add-modules"
-					retval += (fullAddModules).value.mkString(",")
-				end if
-				retval.result()
+				insertModules(
+					javaOptions.value,
+					(fullModulepath).value.files,
+					(fullAddModules).value,
+				)
 			},
 		))
 	}
