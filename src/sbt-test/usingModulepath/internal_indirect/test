@@ -1,0 +1,9 @@
+> third/verify_dependencyModulepath
+> third/verify_dependencyClasspath
+
+> third/compile
+
+> third/verify_fullModulepath
+> third/verify_fullClasspath
+
+> third/Compile/run
