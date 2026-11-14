@@ -1,14 +1,14 @@
 lazy val jlink_managedModularJar = project
 	.in(file("."))
-	.enablePlugins(JlinkPlugin, ModulePathPlugin)
+	.enablePlugins(JlinkPlugin, ModulepathPlugin)
 	.settings(
 		autoScalaLibrary := false,
-		exportToModulePath := true,
-		libraryDependencies += "org.jsoup" % "jsoup" % "1.20.1" % ModulePath,
+		exportToModulepath := true,
+		libraryDependencies += "org.jsoup" % "jsoup" % "1.20.1" % Modulepath,
 		TaskKey[Unit]("verify_jlink_fullModulepath") := Def.uncached {
 			val expected = Seq(
 				"jsoup-1.20.1.jar",
-				"jlink_managedmodularjar_3-0.1.0-SNAPSHOT-modulePath.jar",
+				"jlink_managedmodularjar_3-0.1.0-SNAPSHOT-modulepath.jar",
 			)
 			val modules = (Compile / jlink / fullModulepath).value
 			val actual = modules.map(_.data.name)

@@ -7,7 +7,7 @@ import scala.util.Using
 import name.rayrobdod.sbtJlink.JsonProtocol.given
 
 object JlinkPlugin extends AutoPlugin:
-	override def requires = ModulePathPlugin
+	override def requires = ModulepathPlugin
 	object autoImport:
 		val jlinkRun = inputKey[Unit]("Runs the artifact built by jlink")
 		val jlink = taskKey[Unit]("assemble a custom runtime image")
@@ -23,7 +23,7 @@ object JlinkPlugin extends AutoPlugin:
 		val jlinkDiscoveredLaunchers = taskKey[Seq[JlinkLauncher]]("Discovered launchers to add to the jlink build")
 		val jlinkLaunchers = taskKey[Seq[JlinkLauncher]]("Launchers to add to the jlink build")
 	import autoImport.*
-	import ModulePathPlugin.autoImport.*
+	import ModulepathPlugin.autoImport.*
 	import JmodPlugin.autoImport.*
 
 	override lazy val globalSettings = Seq(

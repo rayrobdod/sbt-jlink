@@ -3,7 +3,7 @@ lazy val jlink_standaloneJmod = project
 	.enablePlugins(JlinkPlugin, JmodPlugin)
 	.settings(
 		autoScalaLibrary := false,
-		exportToModulePath := true,
+		exportToModulepath := true,
 		TaskKey[Unit]("verify_jlink_fullModulepath") := Def.uncached {
 			val expected = Seq(
 				"jlink_standalonejmod_3-0.1.0-SNAPSHOT.jmod",

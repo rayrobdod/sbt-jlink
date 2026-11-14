@@ -5,13 +5,13 @@ import sbt.Keys.*
 import sbt.util.CacheImplicits.given
 import java.nio.file.Path
 
-object ModulePathPlugin extends AutoPlugin:
+object ModulepathPlugin extends AutoPlugin:
 	override def requires = sbt.plugins.JvmPlugin
 	object autoImport:
-		val ModulePath = config("modulePath")
-		val TestModulepath = config("test-modulepath").extend(ModulePath)
+		val Modulepath = config("modulepath")
+		val TestModulepath = config("test-modulepath").extend(Modulepath)
 
-		val exportToModulePath = settingKey[Boolean]("If true, do not export packageBin to the compile classpath, instead export packageBin to the modulepath")
+		val exportToModulepath = settingKey[Boolean]("If true, do not export packageBin to the compile classpath, instead export packageBin to the modulepath")
 		val discoveredAddModules = taskKey[Option[String]]("The discovered java platform modules in this project")
 
 		val unmanagedModulepath = taskKey[Classpath]("Modulepath entries (deep) that are manually managed.")
@@ -30,18 +30,18 @@ object ModulePathPlugin extends AutoPlugin:
 	import autoImport.*
 
 	override def globalSettings = Seq(
-		exportToModulePath := false,
+		exportToModulepath := false,
 	)
 
 	private def unscopedSettings = Seq(
-		ivyConfigurations += ModulePath,
+		ivyConfigurations += Modulepath,
 		ivyConfigurations += TestModulepath,
 
 		Compile / managedModulepath := Def.uncached {
 			val c: xsbti.FileConverter = (fileConverter).value
 
 			update.value
-				.filter(configurationFilter(ModulePath.name))
+				.filter(configurationFilter(Modulepath.name))
 				.allFiles
 				.map(f => c.toVirtualFile(f.toPath))
 				.map(f => f: xsbti.HashedVirtualFileRef)
@@ -57,8 +57,8 @@ object ModulePathPlugin extends AutoPlugin:
 				.map(f => f: xsbti.HashedVirtualFileRef)
 				.map(f => Attributed.blank(f))
 		},
-		Compile / exportToModulePath := exportToModulePath.value,
-		Test / exportToModulePath := exportToModulePath.value,
+		Compile / exportToModulepath := exportToModulepath.value,
+		Test / exportToModulepath := exportToModulepath.value,
 	)
 
 	private def internalDependencyModulepathImplTask(
@@ -96,7 +96,7 @@ object ModulePathPlugin extends AutoPlugin:
 
 	private def EmptyIfMainModuleIsDefined(config:sbt.librarymanagement.Configuration, key: TaskKey[Classpath]): Def.Setting[Task[Classpath]] =
 		key := Def.uncached:
-			if (config / exportToModulePath).value then
+			if (config / exportToModulepath).value then
 				Nil
 			else
 				key.value
@@ -144,9 +144,9 @@ object ModulePathPlugin extends AutoPlugin:
 
 
 			packageBin / configuration := {
-				if exportToModulePath.value then
+				if exportToModulepath.value then
 					if Compile == (packageBin / configuration).value then
-						ModulePath
+						Modulepath
 					else if Test == (packageBin / configuration).value then
 						TestModulepath
 					else
@@ -163,7 +163,7 @@ object ModulePathPlugin extends AutoPlugin:
 			EmptyIfMainModuleIsDefined(config, exportedProductJars),
 
 			exportedModulepath := {
-				if exportToModulePath.value then
+				if exportToModulepath.value then
 					Seq(Attributed.blank((packageBin).value: xsbti.HashedVirtualFileRef))
 				else
 					Seq.empty
@@ -197,7 +197,7 @@ object ModulePathPlugin extends AutoPlugin:
 				unmanagedAddModules.value ++ managedAddModules.value
 			},
 			exportedAddModules := {
-				if exportToModulePath.value then
+				if exportToModulepath.value then
 					discoveredAddModules.value.toSeq
 				else
 					Seq.empty

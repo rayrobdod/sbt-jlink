@@ -1,12 +1,12 @@
 lazy val jlink_standaloneModularJar = project
 	.in(file("."))
-	.enablePlugins(JlinkPlugin, ModulePathPlugin)
+	.enablePlugins(JlinkPlugin, ModulepathPlugin)
 	.settings(
 		autoScalaLibrary := false,
-		exportToModulePath := true,
+		exportToModulepath := true,
 		TaskKey[Unit]("verify_jlink_fullModulepath") := Def.uncached {
 			val expected = Seq(
-				"jlink_standalonemodularjar_3-0.1.0-SNAPSHOT-modulePath.jar",
+				"jlink_standalonemodularjar_3-0.1.0-SNAPSHOT-modulepath.jar",
 			)
 			val modules = (Compile / jlink / fullModulepath).value
 			val actual = modules.map(_.data.name)

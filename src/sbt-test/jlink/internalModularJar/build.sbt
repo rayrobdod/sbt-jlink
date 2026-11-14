@@ -1,22 +1,22 @@
 lazy val base = project
 	.in(file("Base"))
-	.enablePlugins(ModulePathPlugin)
+	.enablePlugins(ModulepathPlugin)
 	.settings(
 		autoScalaLibrary := false,
-		exportToModulePath := true,
+		exportToModulepath := true,
 	)
 
 lazy val dependent = project
 	.in(file("Dependent"))
-	.dependsOn(base, base % "modulePath->modulePath")
-	.enablePlugins(JlinkPlugin, ModulePathPlugin)
+	.dependsOn(base, base % "modulepath->modulepath")
+	.enablePlugins(JlinkPlugin, ModulepathPlugin)
 	.settings(
 		autoScalaLibrary := false,
-		exportToModulePath := true,
+		exportToModulepath := true,
 		TaskKey[Unit]("verify_jlink_fullModulepath") := Def.uncached {
 			val expected = Seq(
-				"base_3-0.1.0-SNAPSHOT-modulePath.jar",
-				"dependent_3-0.1.0-SNAPSHOT-modulePath.jar",
+				"base_3-0.1.0-SNAPSHOT-modulepath.jar",
+				"dependent_3-0.1.0-SNAPSHOT-modulepath.jar",
 			)
 			val modules = (Compile / jlink / fullModulepath).value
 			val actual = modules.map(_.data.name)

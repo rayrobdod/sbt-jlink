@@ -8,15 +8,15 @@ lazy val scalaLibraryModule = project
 
 lazy val dependent = project
 	.in(file("Dependent"))
-	.dependsOn(scalaLibraryModule % "modulePath->modulePath")
-	.enablePlugins(JlinkPlugin, ModulePathPlugin)
+	.dependsOn(scalaLibraryModule % "modulepath->modulepath")
+	.enablePlugins(JlinkPlugin, ModulepathPlugin)
 	.settings(
 		autoScalaLibrary := false,
-		exportToModulePath := true,
+		exportToModulepath := true,
 		TaskKey[Unit]("verify_jlink_fullModulepath") := Def.uncached {
 			val expected = Seq(
 				"scalalibrarymodule_3-0.1.0-SNAPSHOT-classpathToModule.jar",
-				"dependent_3-0.1.0-SNAPSHOT-modulePath.jar",
+				"dependent_3-0.1.0-SNAPSHOT-modulepath.jar",
 			)
 			val modules = (Compile / jlink / fullModulepath).value
 			val actual = modules.map(_.data.name)

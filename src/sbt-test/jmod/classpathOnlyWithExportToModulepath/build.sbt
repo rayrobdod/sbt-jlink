@@ -1,9 +1,9 @@
 lazy val jmod_classpathOnly = project
 	.in(file("."))
-	.enablePlugins(ModulePathPlugin, JmodPlugin)
+	.enablePlugins(ModulepathPlugin, JmodPlugin)
 	.settings(
 		autoScalaLibrary := false,
-		exportToModulePath := true,
+		exportToModulepath := true,
 		TaskKey[Unit]("verify_jmod") := Def.uncached {
 			import java.nio.file.*
 			val conv = fileConverter.value

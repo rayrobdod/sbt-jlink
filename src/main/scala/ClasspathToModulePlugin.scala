@@ -9,7 +9,7 @@ import java.util.regex.Pattern
 import name.rayrobdod.sbtJlink.JsonProtocol.given
 
 object ClasspathToModulePlugin extends AutoPlugin:
-	override def requires = ModulePathPlugin
+	override def requires = ModulepathPlugin
 	object autoImport:
 		val classpathToModule = taskKey[HashedVirtualFileRef]("Create a jlink-usable module from the classpath")
 
@@ -30,7 +30,7 @@ object ClasspathToModulePlugin extends AutoPlugin:
 		val classpathToModuleJdepsPhantoms = taskKey[Seq[(HashedVirtualFileRef, String)]]("Files added to the jdeps-analyzed jar")
 		val classpathToModuleModuleMergeStrategy = taskKey[MergeStrategyChooser]("Merge strategy")
 	import autoImport.*
-	import ModulePathPlugin.autoImport.*
+	import ModulepathPlugin.autoImport.*
 
 	private def buildScalaAnyKindClassTo(outputPath: Path): Unit =
 		java.lang.classfile.ClassFile.of().buildTo(

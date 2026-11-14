@@ -1,17 +1,9 @@
-lazy val base = project
-	.in(file("Base"))
-	.enablePlugins(ModulePathPlugin)
-	.settings(
-		autoScalaLibrary := false,
-		libraryDependencies += "org.jsoup" % "jsoup" % "1.20.1" % ModulePath,
-	)
-
 lazy val dependent = project
-	.in(file("Dependent"))
-	.dependsOn(base, base % "modulePath->modulePath")
-	.enablePlugins(ModulePathPlugin)
+	.in(file("."))
+	.enablePlugins(ModulepathPlugin)
 	.settings(
 		autoScalaLibrary := false,
+		libraryDependencies += "org.jsoup" % "jsoup" % "1.20.1" % Modulepath,
 		TaskKey[Unit]("verify_dependencyModulepath") := Def.uncached {
 			val expected = Seq(
 				"jsoup-1.20.1.jar",
@@ -24,7 +16,6 @@ lazy val dependent = project
 		},
 		TaskKey[Unit]("verify_dependencyClasspath") := Def.uncached {
 			val expected = Seq(
-				"base_3-0.1.0-SNAPSHOT.jar",
 			)
 			val modules = (Compile / dependencyClasspath).value
 			val actual = modules.map(_.data.name)
@@ -45,7 +36,6 @@ lazy val dependent = project
 		TaskKey[Unit]("verify_fullClasspath") := Def.uncached {
 			val expected = Seq(
 				"dependent_3-0.1.0-SNAPSHOT.jar",
-				"base_3-0.1.0-SNAPSHOT.jar",
 			)
 			val modules = (Compile / fullClasspath).value
 			val actual = modules.map(_.data.name)

@@ -1,6 +1,6 @@
 lazy val base = project
 	.in(file("."))
-	.enablePlugins(ModulePathPlugin)
+	.enablePlugins(ModulepathPlugin)
 	.settings(
 		autoScalaLibrary := false,
 		scalaVersion := "3.9.0",
@@ -8,10 +8,10 @@ lazy val base = project
 			"org.scalameta" %% "munit" % "1.3.1" % Test,
 			"org.scala-lang" % "scala3-library_3" % "3.9.0" % Test,
 		),
-		Compile / exportToModulePath := true,
+		Compile / exportToModulepath := true,
 		TaskKey[Unit]("verify_Compile_fullModulepath") := Def.uncached {
 			val expected = Seq(
-				"base_3-0.1.0-SNAPSHOT-modulePath.jar",
+				"base_3-0.1.0-SNAPSHOT-modulepath.jar",
 			)
 			val modules = (Compile / fullModulepath).value
 			val actual = modules.map(_.data.name)
@@ -40,7 +40,7 @@ lazy val base = project
 		TaskKey[Unit]("verify_Test_fullClasspath") := Def.uncached {
 			val expected = Seq(
 				"base_3-0.1.0-SNAPSHOT-tests.jar",
-				"base_3-0.1.0-SNAPSHOT-modulePath.jar",
+				"base_3-0.1.0-SNAPSHOT-modulepath.jar",
 				"munit_3-1.3.1.jar",
 				"scala3-library_3-3.9.0.jar",
 				"junit-interface-1.3.1.jar",
