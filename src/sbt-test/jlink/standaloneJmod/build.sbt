@@ -34,6 +34,7 @@ lazy val jlink_standaloneJmod = project
 
 			fileContains("release", "MODULES=\"java.base main\"")
 			fileContains("bin/main", " -m main/main.Main ")
-			fileContains("bin/main.bat", " -m main/main.Main ")
+			if Option(System.getProperty("os.name")).map(_.contains("Windows")).getOrElse(false) then
+				fileContains("bin/main.bat", " -m main/main.Main ")
 		},
 	)

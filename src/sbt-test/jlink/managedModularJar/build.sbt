@@ -36,6 +36,7 @@ lazy val jlink_managedModularJar = project
 
 			fileContains("release", "MODULES=\"java.base java.xml org.jsoup main\"")
 			fileContains("bin/Main", " -m main/main.Main ")
-			fileContains("bin/Main.bat", " -m main/main.Main ")
+			if Option(System.getProperty("os.name")).map(_.contains("Windows")).getOrElse(false) then
+				fileContains("bin/Main.bat", " -m main/main.Main ")
 		},
 	)
