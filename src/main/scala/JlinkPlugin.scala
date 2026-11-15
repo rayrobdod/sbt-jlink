@@ -60,11 +60,26 @@ object JlinkPlugin extends AutoPlugin:
 			log: Logger
 	): Def.Initialize[Task[Classpath]] =
 		Def.value[Task[Classpath]] {
-			deps.classpath(projectRef)
-				.map: (dep: sbt.ClasspathDep[sbt.ProjectRef]) =>
-					dep.project
+			val visited = scala.collection.mutable.Buffer.empty[sbt.ProjectRef]
+			val pending = scala.collection.mutable.Queue[sbt.ProjectRef](projectRef)
+			while pending.nonEmpty do
+				val visiting = pending.dequeue()
+				visited += visiting
+				val depsOfVisiting =
+					deps.classpath(visiting)
+						// `filter` on `dep.configuration`?
+						.map(_.project)
+				depsOfVisiting.foreach: depOfVisiting =>
+					if ! visited.contains(depOfVisiting) && ! pending.contains(depOfVisiting) then
+						pending.enqueue(depOfVisiting)
+
+			visited -= projectRef
+
+			visited
+				.view
 				.map: (dep: ResolvedReference) =>
 					selfModulepathImplTask(dep, conf).evaluate(data)
+				.to(Vector)
 				.join
 				.map: (classpaths: Seq[Classpath]) =>
 					classpaths.flatten.distinct

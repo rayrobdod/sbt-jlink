@@ -1,0 +1,10 @@
+> third/verify_jlink_fullModulepath
+> third/verify_jlink_jlinkLaunchers
+
+> third/jlink
+
+$ exists target/out/jvm/scala-3.8.4/third/jlink/
+$ exists target/out/jvm/scala-3.8.4/third/jlink/release
+> third/verify_jlink
+
+> third/jlinkRun
